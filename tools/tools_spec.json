@@ -273,45 +273,42 @@
   },
   {
     "name": "analisar_ritmo_cardiaco",
-    "description": "Integração com o modelo de Machine Learning de detecção de arritmias do projeto BluaDiagnostics. Recebe atributos calculados a partir do IBI (Intervalo Entre Batimentos) e retorna a classificação do ritmo cardíaco. Deve ser chamada durante o check-up quando o usuário informar dados de batimentos cardíacos ou quando wearable transmitir leitura.",
+    "description": "Analisa ritmo cardíaco do paciente durante check-up ou quando há leitura de wearable/dashboard disponível. DOIS MODOS: (1) MODO LIVE — passe APENAS `paciente_id` e a tool busca a telemetria PPG mais recente do dashboard (cardiac_data.csv gravado pelo ESP32 + MAX30100), calcula sumário da janela e retorna classificação contextualizada com o perfil clínico (idade, sexo, condições). PREFERIR SEMPRE este modo para pacientes cadastrados com telemetria disponível. (2) MODO LEGADO — passe os 6 parâmetros numéricos manualmente (IBI_ms, BPM, etc.). Usar APENAS em testes ou quando não há telemetria viva. Em produção com paciente cadastrado, NÃO passe os parâmetros numéricos — passe só paciente_id.",
     "parameters": {
       "type": "object",
       "properties": {
+        "paciente_id": {
+          "type": "string",
+          "description": "ID do paciente cadastrado (ex.: 'GABRIEL', 'BENEF-001'). Quando fornecido, ativa o MODO LIVE: a tool busca os dados de telemetria mais recentes do dashboard automaticamente. Preferir SEMPRE este modo quando o paciente está cadastrado e tem telemetria disponível. Os parâmetros numéricos abaixo (IBI_ms, BPM, etc.) só são usados quando paciente_id NÃO é fornecido (modo legado de teste)."
+        },
         "timestamp_s": {
           "type": "number",
-          "description": "Momento da leitura em segundos desde o início da sessão de monitoramento."
+          "description": "Momento da leitura em segundos desde o início da sessão de monitoramento. Modo legado apenas."
         },
         "IBI_ms": {
           "type": "number",
-          "description": "Intervalo Entre Batimentos em milissegundos. Tempo entre um batimento cardíaco e o seguinte. Valor normal em repouso: 600–1000ms."
+          "description": "Intervalo Entre Batimentos em milissegundos. Tempo entre um batimento cardíaco e o seguinte. Valor normal em repouso: 600–1000ms. Modo legado apenas."
         },
         "BPM": {
           "type": "number",
-          "description": "Batimentos Por Minuto calculados a partir do IBI. Valor normal em repouso: 60–100 bpm."
+          "description": "Batimentos Por Minuto calculados a partir do IBI. Valor normal em repouso: 60–100 bpm. Modo legado apenas."
         },
         "media_IBI": {
           "type": "number",
-          "description": "Média dos intervalos IBI na janela deslizante de 5 registros mais recentes, em milissegundos."
+          "description": "Média dos intervalos IBI na janela deslizante de 5 registros mais recentes, em milissegundos. Modo legado apenas."
         },
         "desvio_medio": {
           "type": "number",
-          "description": "Desvio médio dos intervalos IBI na janela deslizante. Valores elevados indicam maior variabilidade e possível irregularidade."
+          "description": "Desvio médio dos intervalos IBI na janela deslizante. Valores elevados indicam maior variabilidade e possível irregularidade. Modo legado apenas."
         },
         "batimentos_anormais": {
           "type": "integer",
           "minimum": 0,
           "maximum": 5,
-          "description": "Quantidade de batimentos classificados como anormais na janela deslizante de 5 registros. 0–1: normal. 2–3: limítrofe. 4–5: irregular."
+          "description": "Quantidade de batimentos classificados como anormais na janela deslizante de 5 registros. 0–1: normal. 2–3: limítrofe. 4–5: irregular. Modo legado apenas."
         }
       },
-      "required": [
-        "timestamp_s",
-        "IBI_ms",
-        "BPM",
-        "media_IBI",
-        "desvio_medio",
-        "batimentos_anormais"
-      ]
+      "required": []
     },
     "mock_responses": {
       "regular": {
@@ -615,6 +612,79 @@
         "status": "RECUSADO",
         "tag": "RASCUNHO_AGUARDANDO_REVISAO_MEDICA"
       }
+    }
+  },
+  {
+    "name": "criar_perfil_paciente",
+    "description": "Cadastra um novo beneficiário no registro compartilhado a partir do diálogo do check-up. FLUXO OBRIGATÓRIO EM 2 ETAPAS para defesa contra alucinação: (1) Primeira chamada com `confirmacao=false` (ou omitido) — retorna PREVIEW dos dados que SERÃO salvos. NÃO grava nada. O agente DEVE apresentar o preview ao usuário e pedir confirmação verbal explícita (\"sim\", \"pode criar\", \"confirmo\"). (2) Apenas APÓS confirmação verbal do usuário, chamar de novo com `confirmacao=true` (mesmos demais argumentos) — agora grava o perfil e retorna o ID gerado (formato BENEF-NEW-NNN). NUNCA chame com `confirmacao=true` sem confirmação verbal explícita do usuário no chat. Use esta tool quando o usuário pedir explicitamente para cadastrar/criar um perfil novo, ou quando tentar usar o sistema e não houver perfil correspondente.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "nome": {
+          "type": "string",
+          "description": "Nome completo do paciente como informado pelo usuário."
+        },
+        "idade": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 120,
+          "description": "Idade em anos."
+        },
+        "sexo": {
+          "type": "string",
+          "enum": ["masculino", "feminino", "outro"],
+          "description": "Sexo biológico. Use exatamente um dos três valores aceitos."
+        },
+        "condicoes": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Lista de condições cardiovasculares conhecidas. Aceita siglas comuns que são normalizadas: HAS (hipertensão), FA (fibrilação atrial), IC (insuficiência cardíaca), DAC, DM, TEP, AVE. Ou nomes completos. Exemplo: ['HAS', 'arritmia sinusal']."
+        },
+        "medicacoes": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Lista de medicações em uso, formato livre. Exemplo: ['Losartana 50mg', 'AAS 100mg']."
+        },
+        "alergias": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Lista de alergias medicamentosas conhecidas. Exemplo: ['Dipirona', 'Penicilina']."
+        },
+        "confirmacao": {
+          "type": "boolean",
+          "default": false,
+          "description": "FLAG CRÍTICA DE SEGURANÇA. SEMPRE chame primeiro com `false` (ou omita) para obter o preview. Só passe `true` APÓS confirmação verbal explícita do usuário (\"sim\", \"pode criar\", \"confirmo\") no chat. NUNCA passe `true` na primeira chamada — sempre faça o preview primeiro."
+        }
+      },
+      "required": ["nome", "idade", "sexo"]
+    }
+  },
+  {
+    "name": "consultar_telemetria_dashboard",
+    "description": "Consulta a telemetria PPG/BPM mais recente do paciente capturada pelo dashboard (cardiac_data.csv gravado pelo ESP32 + MAX30100). Retorna NÚMEROS CRUS (BPM médio/mín/máx, % regular/atenção/irregular, lista dos últimos batimentos) — SEM dar veredito clínico. Use esta tool quando o usuário pedir DADOS (\"qual meu BPM agora?\", \"quantos batimentos por minuto?\", \"me mostra os números\", \"como tá a leitura?\"). Para VEREDITO clínico (\"está irregular?\", \"meu ritmo tá bom?\"), use `analisar_ritmo_cardiaco(paciente_id=...)` em vez disso. As duas tools podem ser chamadas em sequência: primeiro consultar_telemetria_dashboard para apresentar os números, depois analisar_ritmo_cardiaco para o veredito.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "paciente_id": {
+          "type": "string",
+          "description": "ID do paciente cadastrado (ex.: 'GABRIEL', 'BENEF-NEW-001'). Use o ID do beneficiário ativo da sessão."
+        },
+        "janela_min": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60,
+          "default": 5,
+          "description": "Tamanho da janela temporal em minutos para calcular o resumo (BPM médio, % de status). Default 5 minutos."
+        },
+        "n_amostras": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10,
+          "description": "Quantos batimentos individuais retornar na lista. Default 10, máximo 50 (clampeado internamente)."
+        }
+      },
+      "required": ["paciente_id"]
     }
   }
 ]

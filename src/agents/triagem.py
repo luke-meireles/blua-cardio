@@ -14,7 +14,12 @@ from pathlib import Path
 
 from src.llm.qwen_client import chat, formatar_mensagens, TEMPERATURA_RACIOCINIO
 from src.prompts import carregar_prompt
-from src.tools import consultar_historico_paciente, agendar_teleconsulta, estratificar_dor_toracica
+from src.tools import (
+    consultar_historico_paciente,
+    agendar_teleconsulta,
+    estratificar_dor_toracica,
+    consultar_telemetria_dashboard,
+)
 from src.rag import recuperar_contexto_detalhado
 
 # ---- tools spec & system prompt -----------------------------------------
@@ -27,7 +32,7 @@ _TOOLS_TRIAGEM = [
     {"type": "function", "function": t}
     for t in _TOOLS_SPEC
     if t["name"] in {"consultar_historico_paciente", "agendar_teleconsulta",
-                     "estratificar_dor_toracica"}
+                     "estratificar_dor_toracica", "consultar_telemetria_dashboard"}
 ]
 
 SYSTEM_PROMPT_TRIAGEM = carregar_prompt("agente_triagem")
@@ -41,6 +46,7 @@ def _executar_tool(nome: str, argumentos: dict) -> str:
         "consultar_historico_paciente": consultar_historico_paciente,
         "agendar_teleconsulta": agendar_teleconsulta,
         "estratificar_dor_toracica": estratificar_dor_toracica,
+        "consultar_telemetria_dashboard": consultar_telemetria_dashboard,
     }
     func = mapa.get(nome)
     if not func:

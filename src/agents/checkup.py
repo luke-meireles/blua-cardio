@@ -18,6 +18,8 @@ from src.tools import (
     analisar_ritmo_cardiaco,
     consultar_sinais_vitais_wearable,
     agendar_teleconsulta,
+    criar_perfil_paciente,
+    consultar_telemetria_dashboard,
 )
 from src.rag import recuperar_contexto_detalhado
 
@@ -35,6 +37,8 @@ _TOOLS_CHECKUP = [
         "analisar_ritmo_cardiaco",
         "consultar_sinais_vitais_wearable",
         "agendar_teleconsulta",
+        "criar_perfil_paciente",
+        "consultar_telemetria_dashboard",
     }
 ]
 
@@ -50,6 +54,8 @@ def _executar_tool(nome: str, argumentos: dict) -> str:
         "analisar_ritmo_cardiaco": analisar_ritmo_cardiaco,
         "consultar_sinais_vitais_wearable": consultar_sinais_vitais_wearable,
         "agendar_teleconsulta": agendar_teleconsulta,
+        "criar_perfil_paciente": criar_perfil_paciente,
+        "consultar_telemetria_dashboard": consultar_telemetria_dashboard,
     }
     func = mapa.get(nome)
     if not func:
