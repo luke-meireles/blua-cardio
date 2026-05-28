@@ -189,6 +189,13 @@ def _observacao_contextualizada(
     elif classificacao == "atencao":
         partes.append("Monitoramento contínuo recomendado.")
 
+    # Linha 5 — disclaimer (sempre que não for ritmo regular)
+    if classificacao != "regular":
+        partes.append(
+            "Estimativa baseada em PPG (sensor óptico), não substitui ECG "
+            "nem avaliação clínica presencial."
+        )
+
     return " ".join(partes)
 
 
@@ -240,7 +247,10 @@ def _modo_mock(
         observacao = (
             f"Irregularidade detectada. {batimentos_anormais} de 5 registros "
             "classificados como anormais. Alta variabilidade de IBI. "
-            "Recomenda avaliação médica."
+            "Recomenda avaliação médica. "
+            "Se houver dor torácica, dispneia ou síncope: SAMU 192. "
+            "Estimativa baseada em PPG (sensor óptico), não substitui ECG "
+            "nem avaliação clínica presencial."
         )
 
     return {
