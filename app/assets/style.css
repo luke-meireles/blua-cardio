@@ -5,6 +5,12 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
+/* Mantém scrollbar vertical sempre presente — evita "faixa cortada"
+   da topbar em viewport normal (fix S4 do smoke 8.9). */
+html {
+    overflow-y: scroll;
+}
+
 :root {
     --hud-blue:        #0A4DA2;
     --hud-blue-dark:   #073E82;

@@ -41,10 +41,23 @@ except Exception as exc:
 
 import dash
 from dash import (
-    Dash, html, dcc, callback, clientside_callback,
+    html, dcc, callback, clientside_callback,
     Input, Output, State, no_update, ctx,
 )
 import dash_bootstrap_components as dbc
+
+# Registro da página no app multi-pages (Passo 8.5 da unificação Dash).
+# path='/' direto (não path='/chat' com redirect_from=['/'] como planejado
+# originalmente em D2) — redirect_from para '/' colide com endpoint Flask
+# padrão no Dash 4.1.0 ("View function mapping is overwriting"). Quando
+# uma landing page existir (próxima fase de integração com ArrhythmiaMonitor),
+# este path volta a '/chat' e landing assume '/'.
+dash.register_page(
+    __name__,
+    path="/",
+    name="Chat",
+    order=0,
+)
 
 from src.graph import construir_grafo, executar_turno, aprovar_rascunho_prescricao
 
@@ -74,14 +87,9 @@ BENEFICIARIOS = [
 # =============================================================================
 # App
 # =============================================================================
-
-app = Dash(
-    __name__,
-    external_stylesheets=[dbc.themes.BOOTSTRAP],
-    suppress_callback_exceptions=True,
-    title="BluaDiagnostics — Care Plus",
-)
-server = app.server
+# Removido pelo Passo 8.5 — a instância Dash() agora vive em app/unified_app.py
+# (entrypoint único multi-pages). Esta página apenas exporta `layout` e
+# decora callbacks com @callback (global, do módulo dash).
 
 # =============================================================================
 # Componentes auxiliares
@@ -103,35 +111,6 @@ def hud_panel(title: str, content, status: str = "ATIVO"):
         ], className="hud-panel__header"),
         html.Div(content, className="hud-panel__body"),
     ], className="hud-panel")
-
-
-def topbar():
-    return html.Div([
-        # Brand
-        html.Div([
-            html.Span("B", className="mark"),
-            html.Div([
-                html.Div("BLUA / DIAGNOSTICS", className="blua-topbar__title-main"),
-                html.Small("CARE PLUS · SPRINT 2", className="blua-topbar__title-sub"),
-            ]),
-        ], className="hud-topbar__brand"),
-
-        # Center: telemetry
-        html.Div([
-            html.Span([
-                html.Span(className="sig-dot"),
-                html.Span(BACKEND_ATUAL.upper(), className="val"),
-            ], className="tel"),
-            html.Span([
-                html.Span("MODEL", className="lbl"),
-                html.Span(MODELO_ATUAL, className="val"),
-            ], className="tel"),
-            html.Span([
-                html.Span("AGENTS", className="lbl"),
-                html.Span("10", className="val"),
-            ], className="tel"),
-        ], className="hud-topbar__telemetry", style={"justifySelf": "end"}),
-    ], className="hud-topbar")
 
 
 def patient_card(perfil_id: str):
@@ -231,31 +210,19 @@ def confidence_badge(nivel: str, score: float):
 # Layout
 # =============================================================================
 
-app.layout = html.Div([
+layout = html.Div([
     # Audio element (alert.wav) — ativado por callback quando red flag
     html.Audio(id="audio-alert", src="/assets/alert.wav",
                className="blua-audio-alert", autoPlay=False),
 
-    # Session storage
-    dcc.Store(id="session-data", data={
-        "thread_id": str(uuid.uuid4()),
-        "mensagens": [],
-        "flags_safety_anteriores": [],
-        "ultimo_estado": None,
-    }),
-
-    # Topbar
-    topbar(),
+    # Session storage — Passo 8.5: movido para o layout global do
+    # app/unified_app.py com storage_type="session" (preserva conversa
+    # entre páginas, reseta ao fechar a aba). Callbacks abaixo continuam
+    # referenciando "session-data" — Dash resolve Stores globais por ID
+    # independente da página ativa.
 
     # Page container
     html.Div([
-        # Hero
-        html.Div([
-            html.H1("BLUA DIAGNOSTICS"),
-            html.P("Assistente cardiovascular Care Plus · multi-agente LangGraph · RAG ChromaDB"),
-            html.Span("SPRINT 2", className="hud-hero__tag"),
-        ], className="hud-hero"),
-
         # 3-column main grid
         html.Div([
             # Coluna esquerda — Paciente
@@ -637,7 +604,6 @@ clientside_callback(
 # bolha "Pensando..." instantaneamente. Callback Python substitui o
 # chat-area completo quando responde — usuario percebe latencia zero.
 
-if __name__ == "__main__":
-    print(f"\n[dash_app] Iniciando em http://localhost:8050")
-    print(f"[dash_app] Backend: {BACKEND_ATUAL} · Modelo: {MODELO_ATUAL}\n")
-    app.run(debug=False, host="0.0.0.0", port=8050)
+# Bloco `if __name__ == "__main__": app.run(...)` removido pelo Passo 8.5.
+# O servidor agora é iniciado por app/unified_app.py, que monta todas as
+# páginas (chat, monitor, analise, gabriel) num único Flask na porta 8050.

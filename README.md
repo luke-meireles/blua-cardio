@@ -17,8 +17,29 @@ Em construção. Plano de integração em `PLANO_MERGE.md`.
 - ChromaDB (RAG)
 - pandas (telemetria)
 
-## Como rodar (após Passo 5 do PLANO_MERGE.md)
-Ver `PLANO_MERGE.md` → Passo 7 (smoke tests).
+## Como rodar
+
+```bash
+python app/unified_app.py
+```
+
+Acessa em `http://localhost:8050`:
+
+| Rota | Conteúdo |
+|------|----------|
+| `/` | Chat (chatbot LangGraph + RAG) |
+| `/monitor` | Telemetria PPG ao vivo (ESP32 + MAX30100) |
+| `/analise` | Análise histórica do CSV de telemetria |
+| `/gabriel` | Prontuário do paciente Gabriel (referência) |
+| `/pacientes` | Lista do registry de beneficiários |
+
+Para produção:
+
+```bash
+gunicorn -w 1 -b 0.0.0.0:8050 app.unified_app:server
+```
+
+Servidor único Flask hospeda chat + dashboard via `use_pages=True`.
 
 ## Configuração via variáveis de ambiente
 

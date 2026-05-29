@@ -30,9 +30,6 @@ regex>=2024.0.0  # B1: lookbehind variável (não suportado pelo `re` built-in)
 dash>=2.18.0
 dash-bootstrap-components>=1.6.0
 
-# --- Sprint 2 — Fallback Streamlit (opcional) ---
-streamlit>=1.35.0
-
 # --- Sprint 2 — Observabilidade (opcional) ---
 langsmith>=0.1.0
 
