@@ -846,9 +846,8 @@ para detalhes completos.
 escopo desta merge:
 - BENEF-CV-002 alergias com formato inconsistente.
 - safety.py heurística "você tem" sem contexto.
-<!-- TODO: substituir esta linha pelas referências reais após Passo D
-     do warm-up. Formato esperado: "Ver ISSUES.md" OU "Ver issues #N
-     e #M no [GitHub/ClickUp/Linear/etc]". -->
+
+Ver `ISSUES.md` na raiz do repo.
 
 ---
 
