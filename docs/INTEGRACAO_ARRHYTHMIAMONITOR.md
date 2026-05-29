@@ -142,7 +142,64 @@ Decisões a tomar no início da próxima fase, não agora.
 
 ---
 
-## 5. Atalhos já preparados
+## 5. Decisões adiadas para implementação pós-integração
+
+Funcionalidades discutidas durante o Passo 8 (unificação Dash) que
+foram intencionalmente adiadas. Razão geral: implementar antes pode
+ser trabalho perdido, já que a arquitetura final (com Azure + ML +
+decisão sobre paciente único vs múltiplos) ainda não está
+consolidada. Estas decisões serão revisitadas quando o conteúdo do
+`ArrhythmiaMonitor` for trazido para o `blua-cardio`.
+
+### 5.1 Seletor global de paciente como contexto da sessão
+
+**Ideia:** componente dropdown presente em todas as páginas que
+seleciona "qual paciente é o contexto da sessão". Ao mudar:
+- Conteúdo de `/gabriel` (que vira `/paciente`) atualiza pra refletir
+  prontuário do paciente selecionado.
+- Dados de `/monitor` filtram pelo paciente.
+- Análise de `/analise` filtra pelo paciente.
+- Contexto do chatbot em `/` passa a ser o paciente selecionado
+  (substitui o seletor atual da página chat).
+
+**Estado atual no `blua-cardio`:** sistema tem `/gabriel` hardcoded
+como página dedicada ao Gabriel. `pages/gabriel.py` tem
+`PACIENTE_INFO = {...}` literal. Não há mecanismo de seleção fora
+do chat.
+
+**Implicações arquiteturais:**
+- `pages/gabriel.py` precisa virar paciente-agnóstico (provavelmente
+  renomear pra `pages/paciente.py`).
+- `dcc.Store(id="paciente-ativo")` no layout global do entrypoint.
+- Callbacks de cada página passam a ouvir mudanças do Store.
+- Telemetria precisa de campo `patient` consistente — hoje o
+  `cardiac_data.csv` tem `patient="live"` para todos os registros.
+  Decisão pendente: telemetria por paciente fica no Azure Blob
+  (separado por blob name) ou no CSV local com campo `patient`
+  preenchido corretamente?
+- `/pacientes` evolui de "lista do registry" para "seletor visual
+  de paciente" (cards clicáveis que ativam o paciente como
+  contexto).
+
+**Decisão arquitetural pendente para a próxima fase:**
+- Sistema final tem 1 paciente por instância (cada usuário vê só
+  seu próprio prontuário) ou múltiplos pacientes selecionáveis?
+- Se 1 paciente: seletor global desnecessário, `/pacientes`
+  provavelmente some, `/gabriel` permanece como página principal
+  do paciente único.
+- Se múltiplos: implementar seletor global conforme descrito.
+
+**Custo estimado de implementação (se for o caminho):**
+- Versão mínima (só `/gabriel` reagindo ao Store): 1-2h.
+- Versão completa (todas as páginas reagindo): 4-6h, possivelmente
+  com mudanças no schema dos CSVs.
+
+**Discussão original:** sessão de 2026-05-28 durante sub-passo 8.6
+da unificação Dash em `blua-cardio`.
+
+---
+
+## 6. Atalhos já preparados
 
 | Atalho | Patch que aplicou |
 |--------|-------------------|
