@@ -236,3 +236,30 @@
 .blua-audio-alert {
     display: none;
 }
+
+/* =============================================================================
+   Robustez de layout em viewport estreita (8.9 fix S1+S2+S3)
+   ============================================================================= */
+
+/* S1: card de paciente — permite item central do grid encolher.
+   Sem min-width: 0 nos filhos, o grid não respeita a largura disponível
+   quando viewport reduz (default min-width de itens de grid é "auto"). */
+.hud-patient {
+    min-width: 0;
+}
+.hud-patient > * {
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+/* S2 + S3: containers narrativos quebram palavras longas
+   (URLs, identificadores tipo RED_FLAGS_CARDIOVASCULARES.MD, RERANK=4.01,
+   código sem espaço). overflow-wrap: anywhere é mais agressivo que break-word
+   — quebra em qualquer lugar quando necessário, preserva palavras quando cabe. */
+.blua-bubble,
+.hud-panel__body,
+.hud-patient__name,
+.hud-patient__meta {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}

@@ -113,35 +113,6 @@ def hud_panel(title: str, content, status: str = "ATIVO"):
     ], className="hud-panel")
 
 
-def topbar():
-    return html.Div([
-        # Brand
-        html.Div([
-            html.Span("B", className="mark"),
-            html.Div([
-                html.Div("BLUA / DIAGNOSTICS", className="blua-topbar__title-main"),
-                html.Small("CARE PLUS · SPRINT 2", className="blua-topbar__title-sub"),
-            ]),
-        ], className="hud-topbar__brand"),
-
-        # Center: telemetry
-        html.Div([
-            html.Span([
-                html.Span(className="sig-dot"),
-                html.Span(BACKEND_ATUAL.upper(), className="val"),
-            ], className="tel"),
-            html.Span([
-                html.Span("MODEL", className="lbl"),
-                html.Span(MODELO_ATUAL, className="val"),
-            ], className="tel"),
-            html.Span([
-                html.Span("AGENTS", className="lbl"),
-                html.Span("10", className="val"),
-            ], className="tel"),
-        ], className="hud-topbar__telemetry", style={"justifySelf": "end"}),
-    ], className="hud-topbar")
-
-
 def patient_card(perfil_id: str):
     """Card de paciente — varia conforme seleção."""
     perfis_info = {
@@ -250,18 +221,8 @@ layout = html.Div([
     # referenciando "session-data" — Dash resolve Stores globais por ID
     # independente da página ativa.
 
-    # Topbar
-    topbar(),
-
     # Page container
     html.Div([
-        # Hero
-        html.Div([
-            html.H1("BLUA DIAGNOSTICS"),
-            html.P("Assistente cardiovascular Care Plus · multi-agente LangGraph · RAG ChromaDB"),
-            html.Span("SPRINT 2", className="hud-hero__tag"),
-        ], className="hud-hero"),
-
         # 3-column main grid
         html.Div([
             # Coluna esquerda — Paciente
