@@ -646,6 +646,29 @@
           "laudo": "Compatível com FA"
         }
       ]
+    },
+    {
+      "id": "MEU_PERFIL",
+      "nome": null,
+      "idade": null,
+      "sexo": null,
+      "plano": "Care Plus",
+      "condicoes_ativas": [],
+      "medicacoes_ativas": [],
+      "alergias": [],
+      "score_risco_cardiovascular": "a_avaliar",
+      "consultas": {
+        "ultima": null,
+        "proxima": null
+      },
+      "exames_recentes": [],
+      "sinais_vitais_ultimo_registro": {},
+      "criado_em": "2026-05-30T00:00:00",
+      "origem": "perfil_proprio",
+      "_meta": {
+        "descricao": "Perfil do usuário do sistema. Editável via /pacientes ou via chatbot (criar_perfil_paciente).",
+        "csv_telemetria": "dashboard/data/cardiac_data.csv"
+      }
     }
   ]
 }
