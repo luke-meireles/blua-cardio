@@ -27,8 +27,14 @@ import sys
 import uuid
 from pathlib import Path
 
-# Garantir raiz do projeto no path
-_RAIZ = Path(__file__).resolve().parents[1]
+# Garantir raiz do projeto no path.
+# Arquivo está em dashboard/pages/chat.py:
+#   parents[0] = dashboard/pages/
+#   parents[1] = dashboard/
+#   parents[2] = raiz do projeto  <-- queremos esta
+# Necessário pra que "from src.graph import ..." e "from colab_setup import ..."
+# resolvam corretamente.
+_RAIZ = Path(__file__).resolve().parents[2]
 if str(_RAIZ) not in sys.path:
     sys.path.insert(0, str(_RAIZ))
 
@@ -46,17 +52,16 @@ from dash import (
 )
 import dash_bootstrap_components as dbc
 
-# Registro da página no app multi-pages (Passo 8.5 da unificação Dash).
-# path='/' direto (não path='/chat' com redirect_from=['/'] como planejado
-# originalmente em D2) — redirect_from para '/' colide com endpoint Flask
-# padrão no Dash 4.1.0 ("View function mapping is overwriting"). Quando
-# uma landing page existir (próxima fase de integração com ArrhythmiaMonitor),
-# este path volta a '/chat' e landing assume '/'.
+# Registro da página no app multi-pages.
+# path='/chat' (C3 da integração ArrhythmiaMonitor): raiz '/' é home.py
+# upstream agora; chat fica em /chat.
+# order=5: vem depois de home(0), monitor(1), analise(2), gabriel(3),
+# deixando order=4 livre pra /meu-perfil (C13/H futuro).
 dash.register_page(
     __name__,
-    path="/",
+    path="/chat",
     name="Chat",
-    order=0,
+    order=5,
 )
 
 from src.graph import construir_grafo, executar_turno, aprovar_rascunho_prescricao
