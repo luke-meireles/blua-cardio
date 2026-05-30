@@ -4,19 +4,28 @@ Caminhos canônicos para os dois sistemas.
 Ponto único de verdade. Se você mover os arquivos de dados, atualize APENAS
 aqui — todos os outros módulos importam destes constantes.
 
-Layout esperado depois do merge:
+Layout esperado depois da integração ArrhythmiaMonitor (Fase I.fix):
 
-    unified_blua/
-      app/           # entradas Dash (chat, monitor, etc)
+    blua-cardio/
+      dashboard/     # Dash multi-pages upstream (home, monitor, analise, chat, ...)
+        data/                       # CSVs de telemetria (canônico do dashboard upstream)
+          cardiac_data.csv          # gravado pelo /monitor em tempo real
+          gabriel_data.csv          # dataset de referência do dashboard
       src/           # lógica do chatbot (LangGraph, tools, RAG)
       shared/        # esta pasta — ponte
-      data/
-        cardiac_data.csv          # gravado pelo /monitor em tempo real
-        gabriel_data.csv          # dataset de referência do dashboard
+      data/                         # dados não-telemetria do chatbot
+        consultas/                  # registros de atendimentos (R3)
         mocks/
-          perfis_clinicos.json    # registro de pacientes (extensível)
+          perfis_clinicos.json      # registro de pacientes (extensível)
           wearable.json
           ...
+
+Estrutura dual de `data/` é intencional:
+- `dashboard/data/` segue convenção do upstream (`dashboard/utils/storage.py` com
+  PROJECT_ROOT=parent.parent resolve pra `dashboard/`). Manter aqui evita patch
+  no upstream e alinha com sua filosofia ("Cenário 3 — upstream canônico").
+- `data/` (raiz) mantém artefatos do chatbot (mocks JSON, consultas). Não há
+  conflito porque os dois sub-sistemas usam paths distintos.
 """
 from __future__ import annotations
 
@@ -44,6 +53,10 @@ def _find_project_root() -> Path:
 
 PROJECT_ROOT: Path = _find_project_root()
 DATA_DIR: Path = PROJECT_ROOT / "data"
+# I.fix: CSVs de telemetria vivem em dashboard/data/ pra alinhar com
+# dashboard/utils/storage.py upstream (PROJECT_ROOT=parent.parent).
+# Mocks JSON e consultas continuam em DATA_DIR.
+DASHBOARD_DATA_DIR: Path = PROJECT_ROOT / "dashboard" / "data"
 
 # Registro de beneficiários — origem: chatbot (perfis_clinicos.json)
 PROFILES_JSON: Path = DATA_DIR / "mocks" / "perfis_clinicos.json"
@@ -54,7 +67,7 @@ PROFILES_JSON: Path = DATA_DIR / "mocks" / "perfis_clinicos.json"
 TELEMETRY_CSV: Path = Path(
     os.environ.get(
         "BLUA_TELEMETRY_CSV",
-        str(DATA_DIR / "cardiac_data.csv"),
+        str(DASHBOARD_DATA_DIR / "cardiac_data.csv"),
     )
 )
 
@@ -63,6 +76,6 @@ TELEMETRY_CSV: Path = Path(
 GABRIEL_CSV: Path = Path(
     os.environ.get(
         "BLUA_GABRIEL_CSV",
-        str(DATA_DIR / "gabriel_data.csv"),
+        str(DASHBOARD_DATA_DIR / "gabriel_data.csv"),
     )
 )
