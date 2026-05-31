@@ -238,8 +238,16 @@ def _render(store, max_points):
 
         if irregulares >= 4:
 
-            enviar_alerta(latest, irregulares)
-            
+            # Defensive: enviar_alerta já tem opt-in (BLUA_EMAIL_ALERTS) +
+            # try/except interno, mas envolve aqui também pra garantir que
+            # qualquer regressão futura no email_alert nunca crashe o callback
+            # principal do /monitor. Banner + áudio rodam mesmo se e-mail falhar.
+            try:
+                enviar_alerta(latest, irregulares)
+            except Exception as e:
+                print(f"[monitor] enviar_alerta levantou exceção (suprimida): "
+                      f"{type(e).__name__}: {e}")
+
             if len(records) >= 6:
                 anteriores = [r["status"] for r in records[-6:-1]]
                 if anteriores.count(STATUS_IRREGULAR) < 4:
