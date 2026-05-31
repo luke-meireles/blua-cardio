@@ -22,6 +22,8 @@ ao vivo de ESP32 + MAX30100.
   (free tier $10 de boas-vindas)
 - Opcional: [Ollama](https://ollama.com) instalado localmente se preferir
   modo offline
+- Opcional: `AZURE_STORAGE_CONNECTION_STRING` para `/monitor` e `/analise`
+  consumirem Blob real (sem esta var, fallback CSV local é automático)
 
 ## Setup
 
@@ -90,7 +92,7 @@ no ChromaDB local (`chroma_db/`). Resultado: ~132 chunks em ~30 s a 1 min.
 ### 5. Rodar
 
 ```bash
-python app/unified_app.py
+python dashboard/app.py
 ```
 
 Acesse `http://localhost:8050` no browser. Na primeira execução, o
@@ -101,16 +103,18 @@ cross-encoder do reranker (`ms-marco-MiniLM-L-6-v2`, ~80 MB) também
 
 | Rota | Conteúdo |
 |------|----------|
-| `/` | Chat (chatbot LangGraph multi-agente) |
+| `/` | Home (overview + KPIs agregados) |
 | `/monitor` | Telemetria PPG ao vivo (ESP32 + MAX30100) |
-| `/analise` | Análise histórica do CSV de telemetria |
-| `/gabriel` | Visualização do dataset de referência (200 batimentos) |
+| `/analise` | Análise histórica do CSV/Blob de telemetria |
+| `/gabriel` | Prontuário do paciente Gabriel Oliveira (FA paroxística) |
+| `/meu-perfil` | Formulário de criação de perfil → prontuário saudável |
+| `/chat` | Chatbot LangGraph multi-agente |
 | `/pacientes` | Lista do registry de beneficiários com refresh dinâmico |
 
 ## Modo produção
 
 ```bash
-gunicorn -w 1 -b 0.0.0.0:8050 app.unified_app:server
+gunicorn -w 1 -b 0.0.0.0:8050 dashboard.app:server
 ```
 
 > Use `-w 1` (um worker) porque o LangGraph `MemorySaver` é
@@ -136,8 +140,10 @@ python main.py --smoke                                     # bateria de cenário
 | `QWEN_DASHSCOPE_MODEL` | `qwen-plus` | Modelo Qwen via DashScope |
 | `QWEN_OLLAMA_MODEL` | `qwen2.5:14b` | Modelo Qwen via Ollama local |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Endpoint Ollama |
-| `BLUA_TELEMETRY_CSV` | `data/cardiac_data.csv` | Path do CSV de telemetria ao vivo |
-| `BLUA_GABRIEL_CSV` | `data/gabriel_data.csv` | Path do CSV do paciente Gabriel |
+| `AZURE_STORAGE_CONNECTION_STRING` | — (opcional) | Habilita Blob real; sem ela, fallback CSV local |
+| `BLUA_TELEMETRY_CSV` | `dashboard/data/cardiac_data.csv` | Path do CSV de telemetria ao vivo |
+| `BLUA_GABRIEL_CSV` | `dashboard/data/gabriel_data.csv` | Path do CSV do paciente Gabriel |
+| `BLUA_MEU_PERFIL_CSV` | `dashboard/data/meu_perfil_data.csv` | Path do CSV saudável do Meu Perfil |
 | `BLUA_ROOT` | pasta do projeto | Raiz do projeto pra resolução de paths |
 | `CHROMA_PERSIST_DIR` | `./chroma_db` | Diretório de persistência do ChromaDB |
 | `LANGSMITH_API_KEY` | — (opcional) | Ativa observabilidade LangSmith |
@@ -160,37 +166,49 @@ Esperado: `67 passed`. Os testes cobrem:
 
 ```
 blua-cardio/
-├── app/
-│   ├── unified_app.py        # entrypoint Dash multi-pages (este é o main)
-│   └── assets/               # CSS, alert.wav
-├── pages/                    # páginas Dash (use_pages=True)
-│   ├── chat.py               # /  — chatbot (LangGraph)
-│   ├── monitor.py            # /monitor — PPG ao vivo
-│   ├── analysis.py           # /analise — histórico
-│   ├── gabriel.py            # /gabriel — dataset referência
-│   └── pacientes.py          # /pacientes — lista registry
-├── src/                      # lógica de domínio
+├── dashboard/                # servidor Dash multi-pages (entrypoint)
+│   ├── app.py                # entrypoint (este é o main agora)
+│   ├── assets/               # CSS, alert.wav
+│   ├── pages/                # páginas Dash (use_pages=True)
+│   │   ├── home.py           # /        — overview + KPIs
+│   │   ├── chat.py           # /chat    — chatbot (LangGraph)
+│   │   ├── monitor.py        # /monitor — PPG ao vivo
+│   │   ├── analysis.py       # /analise — histórico
+│   │   ├── gabriel.py        # /gabriel — prontuário Gabriel
+│   │   ├── meu_perfil.py     # /meu-perfil — formulário + prontuário
+│   │   └── pacientes.py      # /pacientes — lista registry
+│   ├── utils/                # storage (Blob+CSV fallback), analysis, theme
+│   └── data/                 # CSVs de telemetria
+│       ├── cardiac_data.csv  # telemetria genérica
+│       ├── gabriel_data.csv  # dataset Gabriel (200 batimentos)
+│       └── meu_perfil_data.csv  # dataset Meu Perfil (200 batimentos, saudável)
+├── src/                      # lógica do chatbot
 │   ├── graph.py              # grafo LangGraph (10 nós)
 │   ├── agents/               # supervisor, triagem, checkup, prescricao, ...
-│   ├── tools/                # 9 tools (criar_perfil, agendar, ritmo, ...)
+│   ├── tools/                # 10 tools (criar_perfil, agendar, ritmo, relatorio, ...)
 │   ├── rag/                  # indexer + retriever + reranker (ChromaDB)
 │   ├── llm/                  # cliente Qwen (DashScope/Ollama)
 │   └── safety/               # pre_safety + safety + heurísticas
 ├── shared/                   # paths canônicos + patient_registry
-├── utils/                    # storage, analysis, theme, serial_reader (do dashboard)
-├── firmware/                 # esp32_max30100.ino (firmware Arduino)
+├── api.py                    # API ML upstream (FastAPI + Random Forest)
+├── predicao.py               # classificador Random Forest pré-treinado
+├── simulador/                # simulador ESP32 (opcional, opt-in)
+│   ├── simulador_esp32.cpp   # fonte C++
+│   ├── simulador_esp32.exe   # binário pré-compilado Win x64
+│   ├── gerador_ibi.py        # gerador de IBIs em Python
+│   └── README.md             # setup MSYS2 pra recompilar
 ├── data/
 │   ├── mocks/                # perfis_clinicos.json + outros JSONs
-│   ├── consultas/            # agendamentos persistidos (runtime)
-│   ├── cardiac_data.csv      # telemetria ao vivo
-│   └── gabriel_data.csv      # dataset referência (200 batimentos)
+│   └── consultas/            # agendamentos persistidos (Blob + local)
 ├── knowledge_base/           # 12 documentos cardiovasculares (RAG source)
 ├── prompts/                  # system prompts dos agentes
 ├── chroma_db/                # banco vetorial (gerado pelo indexer)
 ├── tests/                    # 67 testes pytest
-├── docs/                     # INTEGRACAO_ARRHYTHMIAMONITOR.md
+├── docs/
+│   ├── arquitetura/          # planos da integração ArrhythmiaMonitor
+│   └── historico/            # docs do projeto pré-integração
 ├── tools/                    # tools_spec.json (schema OpenAI)
-├── colab_setup.py            # bootstrap de ambiente (.env, Colab Secrets)
+├── colab_setup.py            # bootstrap de ambiente
 ├── main.py                   # CLI alternativo (sem UI Dash)
 ├── requirements.txt
 ├── pyproject.toml
@@ -211,11 +229,11 @@ O `.env` não foi carregado ou a chave está vazia. Confirme:
 Você está rodando de um cwd errado. Use:
 
 ```bash
-python app/unified_app.py
+python dashboard/app.py
 ```
 
-(rodar a partir da raiz do projeto). O `_RAIZ` em `unified_app.py` resolve
-o caminho absoluto do `pages/`.
+(rodar a partir da raiz do projeto). O `_PAGES_DIR` em `dashboard/app.py`
+resolve o caminho absoluto do `dashboard/pages/`.
 
 ### `ChromaDB vazio` ou RAG sem documentos
 
@@ -237,12 +255,10 @@ O `pytest.ini` define `pythonpath = .` automaticamente.
 
 ## Documentos de referência
 
-- `PLANO_MERGE.md` — Plano de unificação dos 2 projetos originais
-- `PASSO_8_UNIFICACAO_DASH.md` — Detalhamento da unificação Dash
-- `docs/INTEGRACAO_ARRHYTHMIAMONITOR.md` — Mapa pra próxima fase
-  (integração com ArrhythmiaMonitor)
-- `ISSUES.md` — Bugs pré-existentes conhecidos
-- `MINI_PATCHES_HARMONIA_ARRHYTHMIAMONITOR.md` — Patches R1-R4
+- `docs/arquitetura/PLANO_INTEGRACAO_ARRHYTHMIAMONITOR.md` — Plano executável da integração
+- `docs/arquitetura/PENDENCIAS_POS_INTEGRACAO.md` — Status das pendências pós-integração
+- `docs/historico/` — Documentos do projeto pré-integração (PLANO_MERGE, PASSO_8, etc.)
+- `simulador/README.md` — Setup MSYS2 pra recompilar o simulador ESP32 (opcional)
 
 ## Licença
 
