@@ -245,6 +245,16 @@ layout = html.Div([
     html.Audio(id="audio-alert", src="/assets/alert.wav",
                className="blua-audio-alert", autoPlay=False),
 
+    # J.4 — trigger de rehidratação. Dispara 1x após o layout montar
+    # (max_intervals=1) e força o callback _rehidratar_chat_area a popular
+    # chat-area com mensagens do session-data. Usar Interval em vez de
+    # Input(hud-url.pathname) porque o page_container do Dash multi-pages
+    # re-renderiza o layout DEPOIS dos callbacks que escutam pathname,
+    # sobrescrevendo o output. Interval só dispara quando o componente
+    # JÁ está montado, garantindo que o output sobrevive.
+    dcc.Interval(id="chat-rehidratar-tick", interval=300,
+                 max_intervals=1, n_intervals=0),
+
     # Session storage — Passo 8.5: movido para o layout global do
     # app/unified_app.py com storage_type="session" (preserva conversa
     # entre páginas, reseta ao fechar a aba). Callbacks abaixo continuam
@@ -640,16 +650,18 @@ clientside_callback(
 
 @callback(
     Output("chat-area", "children", allow_duplicate=True),
-    Input("hud-url", "pathname"),
+    Input("chat-rehidratar-tick", "n_intervals"),
     State("session-data", "data"),
     prevent_initial_call=True,
 )
-def _rehidratar_chat_area(pathname, sessao):
+def _rehidratar_chat_area(_n_intervals, sessao):
     """Repopula chat-area.children a partir de session-data.mensagens
-    quando o usuário navega pra /chat. Sem isso, mensagens enviadas
-    antes de sair da página somem visualmente ao voltar."""
-    if pathname != "/chat":
-        return no_update
+    quando o layout do /chat termina de montar. Sem isso, mensagens
+    enviadas antes de sair da página somem visualmente ao voltar.
+
+    Trigger via dcc.Interval em vez de Input(hud-url.pathname) porque
+    o page_container do Dash multi-pages re-renderiza o layout DEPOIS
+    dos callbacks que escutam pathname, sobrescrevendo o output."""
     if not sessao or not sessao.get("mensagens"):
         # Primeira visita ou sessão zerada — mantém o "Olá" inicial
         return no_update
