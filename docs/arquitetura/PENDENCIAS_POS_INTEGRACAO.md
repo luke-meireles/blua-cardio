@@ -6,6 +6,32 @@ Documento criado ao fechar Fase I da integração. Lista o que ficou conhecido m
 
 ---
 
+## Status: Fase J CONCLUÍDA (maio/2026)
+
+7 dos 8 itens implementados em 8 commits. J.4 explicitamente pulado por aceleração — implementação documentada abaixo pode ser feita em sessão futura sem risco de regressão (escopo isolado em chat.py).
+
+| Item | Status | Commit |
+|------|--------|--------|
+| J.5 dropdown topbar visível | ✓ | 2b733d0 |
+| J.7 dropdown /chat unificado (inclui ex-K.1) | ✓ | 6fd65ac |
+| J.6 feedback visual perfil ativo | ✓ (resolvido por J.5) | 97960a3 |
+| J.3 fallback Blob → CSV local | ✓ | 336038d |
+| J.2 CSV saudável MEU_PERFIL | ✓ | bb888e3 |
+| J.1 layout hardcoded saudável | ✓ | 0254b2c |
+| J.1.b formulário criação + update_patient | ✓ | 31549f7 |
+| J.1.b fix-up | ✓ | 33ccc1b |
+| J.4 fix conversa /chat reseta | ⏭ PULADO | — |
+
+### Sobre J.4 (pulado)
+
+Bug visual: ao sair do /chat e voltar, área de conversa aparece vazia mesmo com `dcc.Store(session-data)` global. Estado backend preservado, UI não rehidrata.
+
+**Trabalho estimado:** 1-2h em sessão dedicada.
+**Risco:** baixo (escopo isolado em dashboard/pages/chat.py + callback em dashboard/app.py).
+**Mitigação na demo:** durante apresentação, evitar trocar de página durante uso do /chat. Botão "Nova conversa" pra reset explícito também recomendado nessa sessão.
+
+---
+
 ## Fase J — Demo polish (próxima sessão dedicada)
 
 ### J.1 — Criação de perfil via UI na página `/meu-perfil`
@@ -134,4 +160,4 @@ Durante I3 (smoke browser manual), Filipe testou a tool `criar_perfil_paciente` 
 
 `meu_perfil_data.csv` (gerado por Claude em maio/2026) foi movido de raiz pra `dashboard/data/` e está gitignorado temporariamente. Será integrado formalmente em J.2.
 
-**Última atualização:** maio/2026, fechamento Fase I.
+**Última atualização:** maio/2026, fechamento Fase J (7 de 8 itens — J.4 pulado por aceleração).
