@@ -53,3 +53,7 @@ _backup_sprint2/
 # (dado dinâmico — apenas estrutura é versionada via .gitkeep)
 data/consultas/*
 !data/consultas/.gitkeep
+
+# Pendente integração formal em Fase J (J.2 — integração CSV saudável)
+# Remover esta linha quando MEU_PERFIL ativar via formulário /meu-perfil
+dashboard/data/meu_perfil_data.csv
