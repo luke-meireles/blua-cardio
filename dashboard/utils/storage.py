@@ -122,11 +122,34 @@ def blob_available() -> bool:
 def load_blob(tail: Optional[int] = None) -> pd.DataFrame:
     """
     Lê o dataset_ppg.csv vindo do Azure Blob Storage.
+
+    J.3 INTEGRATION: quando o Azure Blob não está configurado
+    (AZURE_STORAGE_CONNECTION_STRING ausente), faz fallback automático
+    pra dashboard/data/cardiac_data.csv (DEFAULT_CSV). Permite demo
+    local funcional sem Azure. Schema do CSV local (9 colunas) é
+    adaptado pro formato esperado pelos consumidores (7 colunas
+    snake_case, sem datetime/patient). Blob continua funcionando
+    normalmente se a connection string estiver configurada.
+
     tail: se informado, retorna apenas os últimos N registros.
-    Retorna Dataframe vazio caso haja falha
+    Retorna DataFrame vazio só em caso de falha hard no acesso ao Blob.
     """
     if not blob_available():
-        return pd.DataFrame(columns= BLOB_COLUMNS)
+        # J.3 INTEGRATION: fallback local quando Blob indisponível
+        _COLS_BLOB_SCHEMA = [
+            "timestamp_s", "ibi_ms", "bpm", "media_ibi",
+            "desvio_medio", "bat_anormais", "status",
+        ]
+        df = load_csv(DEFAULT_CSV)
+        if df.empty:
+            return pd.DataFrame(columns=_COLS_BLOB_SCHEMA)
+        # Adapta schema do CSV local (9 cols) pro formato esperado (7 cols).
+        # Drop de datetime e patient — nenhum dos 4 consumidores (home.py,
+        # analysis.py, monitor.py x2) usa essas colunas.
+        df = df[_COLS_BLOB_SCHEMA].reset_index(drop=True)
+        if tail:
+            df = df.tail(tail).reset_index(drop=True)
+        return df
     
     try:
         from azure.storage.blob import BlobServiceClient
