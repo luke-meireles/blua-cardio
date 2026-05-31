@@ -65,6 +65,7 @@ dash.register_page(
 )
 
 from src.graph import construir_grafo, executar_turno, aprovar_rascunho_prescricao
+from shared.patient_registry import list_patients
 
 # =============================================================================
 # Configuração e bootstrap do grafo
@@ -80,13 +81,37 @@ print("[dash_app] Construindo grafo LangGraph...")
 GRAFO = construir_grafo()
 print("[dash_app] Grafo pronto.")
 
-# Lista de beneficiários disponíveis
+# Lista de beneficiários disponíveis (J.7 — Fase J).
+#
+# Filtro híbrido: Gabriel + MEU_PERFIL + qualquer perfil criado via
+# chatbot (BENEF-NEW-XXX). Exclui BENEFs canônicos (BENEF-001 a
+# BENEF-CV-003 — dados de teste do blua-cardio original) pra alinhar
+# com o dropdown do topbar (que mostra só Gabriel + Meu Perfil).
+#
+# Carregado em module-import: mudanças no JSON refletem na próxima
+# reinicialização do app. Refresh em runtime (criar perfil via chatbot
+# ou UI/J.1) precisaria callback dinâmico — fora do escopo do J.7.
+def _format_label(p: dict) -> str:
+    nome = p.get("nome") or (
+        "Meu Perfil" if p["id"] == "MEU_PERFIL" else f"Perfil {p['id']}"
+    )
+    idade = p.get("idade")
+    return f"{nome} — {idade}a" if idade is not None else nome
+
+
+def _eh_perfil_visivel(p: dict) -> bool:
+    pid = p["id"]
+    return (
+        pid == "GABRIEL"
+        or pid == "MEU_PERFIL"
+        or pid.startswith("BENEF-NEW-")
+    )
+
+
 BENEFICIARIOS = [
-    {"label": "Gabriel — 34a (referência do dashboard)", "value": "GABRIEL"},
-    {"label": "João Carlos — 58a, HAS+arritmia", "value": "BENEF-001"},
-    {"label": "Maria Aparecida — 67a, IC+FA", "value": "BENEF-002"},
-    {"label": "Roberto Silva — 42a", "value": "BENEF-003"},
-    {"label": "Helena Pereira — 70a, IC fração reduzida", "value": "BENEF-CV-001"},
+    {"label": _format_label(p), "value": p["id"]}
+    for p in list_patients()
+    if _eh_perfil_visivel(p)
 ]
 
 # =============================================================================
