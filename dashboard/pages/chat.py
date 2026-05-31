@@ -622,6 +622,46 @@ clientside_callback(
 
 
 # =============================================================================
+# J.4 — Rehidratação de chat-area ao re-entrar em /chat
+# =============================================================================
+# Bug: o layout do /chat é estático (children de chat-area hardcoded com
+# "Olá! Sou o BluaDiagnostics..."). Cada navegação pra /chat re-renderiza
+# o layout inicial, sobrescrevendo o histórico de bolhas. Session-data
+# (Store global) preserva as mensagens mas a UI não as exibe.
+#
+# Fix: callback dispara em mudança de pathname; quando pathname == "/chat",
+# lê session-data.mensagens e re-renderiza bolhas via chat_bubble().
+#
+# Escopo: rehidrata apenas chat-area (mensagens). Painéis técnicos
+# (confidence/trajetória/RAG/tools/safety) voltam pra "—" ao re-entrar —
+# o histórico das mensagens é o que importa pro usuário; painéis populam
+# de novo no próximo turno do chatbot. Trade-off de simplicidade.
+
+
+@callback(
+    Output("chat-area", "children", allow_duplicate=True),
+    Input("hud-url", "pathname"),
+    State("session-data", "data"),
+    prevent_initial_call=True,
+)
+def _rehidratar_chat_area(pathname, sessao):
+    """Repopula chat-area.children a partir de session-data.mensagens
+    quando o usuário navega pra /chat. Sem isso, mensagens enviadas
+    antes de sair da página somem visualmente ao voltar."""
+    if pathname != "/chat":
+        return no_update
+    if not sessao or not sessao.get("mensagens"):
+        # Primeira visita ou sessão zerada — mantém o "Olá" inicial
+        return no_update
+    # Re-renderiza histórico
+    return [
+        chat_bubble(m["role"], m["content"],
+                    emergencia=m.get("emergencia", False))
+        for m in sessao["mensagens"]
+    ]
+
+
+# =============================================================================
 # Run
 # =============================================================================
 # Nota: o callback `init_painel_tecnico` foi removido em 2026-05-26. Ele
