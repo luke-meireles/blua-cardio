@@ -140,10 +140,11 @@ Mantido upstream literal por enquanto (C12). Filipe atualiza pós-decisão de me
 
 Branch `integracao-arrhythmiamonitor` no repo local `blua-cardio`. Push pro GitHub do `ArrhythmiaMonitor` é decisão futura.
 
-### Out.3 — Features pendentes do README upstream
+### Out.3 — Features pendentes do README upstream — TOTALMENTE FECHADO ✓
 
-3 features citadas no README upstream:
-- Agendamento de consultas no Blob (chatbot grava localmente via R3 — `data/consultas/`). **Status: pendente.**
+**3 de 3 features resolvidas** (2 implementadas + 1 implícita):
+
+- ~~Agendamento de consultas no Blob.~~ **Status: ✓ implementado.** Dual-write Blob primário + local backup em `src/tools/agendamento.py` (commit `50719a4`). API pública intacta — `agendar_teleconsulta` ganha 2 campos no return (`registro_blob`, `registro_local`). Sem Azure configurado: comporta-se como antes (só local). Com Azure: container 'dataset', blob 'consultas_<paciente_id>.json', read-modify-write upsert.
 - ~~Relatório de registros recentes via `load_blob`.~~ **Status: ✓ implementado.** Tool `gerar_relatorio_telemetria(n_registros=N)` em `src/tools/relatorio.py` (commit `efda06c`). Complementa `consultar_telemetria_dashboard` (que é por paciente) com visão GLOBAL agregada do dataset. Registrada em agents `checkup` e `suporte`. Retorna BPM médio/mín/máx, % irregulares, total anômalos + texto pt-BR pro chatbot incorporar.
 - ~~Refinamento de RAG pra dúvidas sobre Warfarina/Atenolol/Losartana.~~ **Status: ✓ resolvido implicitamente.** Investigação F3 (maio/2026) confirmou que a integração do blua-cardio trouxe knowledge_base completo + pipeline RAG ativo em 4 agents (checkup, prescricao, suporte, triagem). Scores >0.92 nas 3 queries de teste (Warfarina/INR → 0.94, Atenolol/taquicardia → 0.93, Losartana/função renal → 0.93). Cobertura existente em `anti_coagulante_bula_resumida.md`, `anti_hipertensivos_bula_resumida.md`, `diretrizes_sbc_hipertensao_arritmia.md`, `protocolo_triagem_cardiovascular.md`.
 
