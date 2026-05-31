@@ -737,3 +737,17 @@ html { overflow-y: scroll; }
 /* Nota sobre S5: o sintoma S5 (duas topbars empilhadas em /chat) foi
    resolvido removendo a função topbar() interna do chat.py — fix Python,
    não CSS. Aplicado quando chat.py for trazido (Fase F). */
+
+/* J.5 — Dropdown topbar PERFIL aparecia vazio (texto invisível).
+   Investigação via DevTools revelou que Dash 4.1 NÃO usa react-select
+   (como o CSS upstream em .Select-control/.Select-value assumia), mas
+   sim Radix UI Dropdown (vê data-state="closed", aria-controls="radix-:rX:").
+   Classes reais: .dash-dropdown, .dash-dropdown-value, .dash-dropdown-value-item.
+   O texto "Gabriel" está renderizado no DOM mas herda
+   color:rgba(255,255,255,0.85) de .hud-topbar__telemetry .tel →
+   branco em fundo branco = invisível.
+   Fix scoped pro topbar (sem afetar outros dropdowns do app). */
+.hud-topbar__dropdown,
+.hud-topbar__dropdown * {
+    color: var(--hud-text) !important;
+}
