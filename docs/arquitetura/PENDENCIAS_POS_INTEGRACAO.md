@@ -144,7 +144,7 @@ Branch `integracao-arrhythmiamonitor` no repo local `blua-cardio`. Push pro GitH
 
 3 features citadas no README upstream:
 - Agendamento de consultas no Blob (chatbot grava localmente via R3 — `data/consultas/`). **Status: pendente.**
-- Relatório de registros recentes via `load_blob`. **Status: pendente.**
+- ~~Relatório de registros recentes via `load_blob`.~~ **Status: ✓ implementado.** Tool `gerar_relatorio_telemetria(n_registros=N)` em `src/tools/relatorio.py` (commit `efda06c`). Complementa `consultar_telemetria_dashboard` (que é por paciente) com visão GLOBAL agregada do dataset. Registrada em agents `checkup` e `suporte`. Retorna BPM médio/mín/máx, % irregulares, total anômalos + texto pt-BR pro chatbot incorporar.
 - ~~Refinamento de RAG pra dúvidas sobre Warfarina/Atenolol/Losartana.~~ **Status: ✓ resolvido implicitamente.** Investigação F3 (maio/2026) confirmou que a integração do blua-cardio trouxe knowledge_base completo + pipeline RAG ativo em 4 agents (checkup, prescricao, suporte, triagem). Scores >0.92 nas 3 queries de teste (Warfarina/INR → 0.94, Atenolol/taquicardia → 0.93, Losartana/função renal → 0.93). Cobertura existente em `anti_coagulante_bula_resumida.md`, `anti_hipertensivos_bula_resumida.md`, `diretrizes_sbc_hipertensao_arritmia.md`, `protocolo_triagem_cardiovascular.md`.
 
 ### Out.4 — Setup Azure Blob real
