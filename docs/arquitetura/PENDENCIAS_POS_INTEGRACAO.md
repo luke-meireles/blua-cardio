@@ -22,6 +22,16 @@ Documento criado ao fechar Fase I da integração. Lista o que ficou conhecido m
 | J.1.b fix-up | ✓ | 33ccc1b |
 | J.4 fix conversa /chat reseta | ⏭ PULADO | — |
 
+### Pendência menor: label dinâmico do dropdown topbar
+
+Tentativa de J.1.4 (label do dropdown topbar mostrar primeiro nome do MEU_PERFIL cadastrado) foi REVERTIDA durante smoke final consecutivo ao J.1.b. Causa: o callback `Output("topbar-perfil-dropdown", "options")` triggered por `Input("hud-url", "pathname")` disparava re-render do react-select v5 do Dash 4 a cada navegação, que resetava o `value` pro primeiro option (GABRIEL). Reset disparava o `_trocar_perfil_ativo` que navegava pra `/gabriel` — clicar MONITOR ou ANALISE voltava pra `/gabriel`.
+
+Estado atual: label dropdown topbar é estático ("Meu Perfil") mesmo após cadastro de perfil. Sacrifício estético em troca de navegação correta.
+
+**Implementação correta (futura, sessão dedicada):** usar `dash.callback_context` pra distinguir mudança vinda de click manual no dropdown vs reset automático pós re-render. Ou refatorar pra não disparar update de options em cada navegação (só quando MEU_PERFIL.nome muda no JSON, via Store dedicado).
+
+**Risco:** baixo (escopo isolado em `dashboard/app.py`, ~15 linhas). **Trabalho:** 1-2h.
+
 ### Sobre J.4 (pulado)
 
 Bug visual: ao sair do /chat e voltar, área de conversa aparece vazia mesmo com `dcc.Store(session-data)` global. Estado backend preservado, UI não rehidrata.

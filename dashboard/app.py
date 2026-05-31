@@ -187,24 +187,15 @@ def _trocar_perfil_ativo(perfil_id):
     return {"id": perfil_id}, rota
 
 
-# J.1.b — label dinâmico do dropdown topbar baseado no JSON do MEU_PERFIL.
-# Quando o usuário cria/edita perfil em /meu-perfil, o label "Meu Perfil"
-# vira o primeiro nome cadastrado (ex: "Carlos"). Dispara em cada navegação
-# pra refletir mudanças sem precisar reiniciar app.
-@app.callback(
-    Output("topbar-perfil-dropdown", "options"),
-    Input("hud-url", "pathname"),
-)
-def _atualizar_label_dropdown(_pathname):
-    from shared.patient_registry import get_patient
-    mp = get_patient("MEU_PERFIL")
-    label_mp = (mp["nome"].split()[0]
-                if mp and mp.get("nome")
-                else "Meu Perfil")
-    return [
-        {"label": "Gabriel", "value": "GABRIEL"},
-        {"label": label_mp, "value": "MEU_PERFIL"},
-    ]
+# J.1.b fix-up (smoke final): label dinâmico do dropdown topbar REMOVIDO.
+# Bug observado: callback que outputava topbar-perfil-dropdown.options a cada
+# mudança de hud-url.pathname disparava re-render do react-select v5 do Dash 4,
+# que resetava o value pro primeiro option (GABRIEL). Reset disparava
+# _trocar_perfil_ativo que navegava pra /gabriel — clicar MONITOR ou ANALISE
+# voltava pra /gabriel.
+# Trade-off: label dropdown fica estático "Meu Perfil" (sem mostrar primeiro
+# nome do usuário). Estética sacrificada em troca de navegação correta.
+# Documentado em PENDENCIAS_POS_INTEGRACAO.md como pendência menor pós-J.
 
 
 if __name__ == "__main__":
