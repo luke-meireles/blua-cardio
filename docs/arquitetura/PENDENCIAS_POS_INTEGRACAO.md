@@ -8,7 +8,7 @@ Documento criado ao fechar Fase I da integração. Lista o que ficou conhecido m
 
 ## Status: Fase J CONCLUÍDA (maio/2026)
 
-7 dos 8 itens implementados em 8 commits. J.4 explicitamente pulado por aceleração — implementação documentada abaixo pode ser feita em sessão futura sem risco de regressão (escopo isolado em chat.py).
+**8 de 8 itens implementados** em 10 commits.
 
 | Item | Status | Commit |
 |------|--------|--------|
@@ -20,7 +20,8 @@ Documento criado ao fechar Fase I da integração. Lista o que ficou conhecido m
 | J.1 layout hardcoded saudável | ✓ | 0254b2c |
 | J.1.b formulário criação + update_patient | ✓ | 31549f7 |
 | J.1.b fix-up | ✓ | 33ccc1b |
-| J.4 fix conversa /chat reseta | ⏭ PULADO | — |
+| J.1.4 revertido (label dinâmico dropdown) | ✓ fix-up | 487dc50 |
+| J.4 fix conversa /chat reseta | ✓ | 6105970 |
 
 ### Pendência menor: label dinâmico do dropdown topbar
 
@@ -31,14 +32,6 @@ Estado atual: label dropdown topbar é estático ("Meu Perfil") mesmo após cada
 **Implementação correta (futura, sessão dedicada):** usar `dash.callback_context` pra distinguir mudança vinda de click manual no dropdown vs reset automático pós re-render. Ou refatorar pra não disparar update de options em cada navegação (só quando MEU_PERFIL.nome muda no JSON, via Store dedicado).
 
 **Risco:** baixo (escopo isolado em `dashboard/app.py`, ~15 linhas). **Trabalho:** 1-2h.
-
-### Sobre J.4 (pulado)
-
-Bug visual: ao sair do /chat e voltar, área de conversa aparece vazia mesmo com `dcc.Store(session-data)` global. Estado backend preservado, UI não rehidrata.
-
-**Trabalho estimado:** 1-2h em sessão dedicada.
-**Risco:** baixo (escopo isolado em dashboard/pages/chat.py + callback em dashboard/app.py).
-**Mitigação na demo:** durante apresentação, evitar trocar de página durante uso do /chat. Botão "Nova conversa" pra reset explícito também recomendado nessa sessão.
 
 ---
 
@@ -170,4 +163,4 @@ Durante I3 (smoke browser manual), Filipe testou a tool `criar_perfil_paciente` 
 
 `meu_perfil_data.csv` (gerado por Claude em maio/2026) foi movido de raiz pra `dashboard/data/` e está gitignorado temporariamente. Será integrado formalmente em J.2.
 
-**Última atualização:** maio/2026, fechamento Fase J (7 de 8 itens — J.4 pulado por aceleração).
+**Última atualização:** maio/2026, Fase J completa (8 de 8 itens).
