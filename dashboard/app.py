@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path  # FIX 8.5: pages_folder absoluto
 
 import dash
-from dash import Dash, Input, Output, dcc, html
+from dash import Dash, Input, Output, State, dcc, html
 
 from utils.storage import ensure_csv, DEFAULT_CSV
 
@@ -196,6 +196,24 @@ def _trocar_perfil_ativo(perfil_id):
 # Trade-off: label dropdown fica estático "Meu Perfil" (sem mostrar primeiro
 # nome do usuário). Estética sacrificada em troca de navegação correta.
 # Documentado em PENDENCIAS_POS_INTEGRACAO.md como pendência menor pós-J.
+
+
+# Sync URL → dropdown value. Diferente da regressão J.1.4 (que mexia em options
+# causando re-render react-select). Aqui só atualizamos value com dash.no_update
+# guard pra evitar ping-pong com _trocar_perfil_ativo.
+@app.callback(
+    Output("topbar-perfil-dropdown", "value"),
+    Input("hud-url", "pathname"),
+    State("topbar-perfil-dropdown", "value"),
+    prevent_initial_call=False,
+)
+def _sync_dropdown_to_url(pathname, current_value):
+    """URL → dropdown. dash.no_update quando value já bate evita loop."""
+    if pathname == "/meu-perfil" and current_value != "MEU_PERFIL":
+        return "MEU_PERFIL"
+    if pathname == "/gabriel" and current_value != "GABRIEL":
+        return "GABRIEL"
+    return dash.no_update
 
 
 if __name__ == "__main__":

@@ -144,16 +144,45 @@ def hud_panel(title: str, content, status: str = "ATIVO"):
 
 
 def patient_card(perfil_id: str):
-    """Card de paciente — varia conforme seleção."""
-    perfis_info = {
-        "GABRIEL": ("GF", "Gabriel Fictício", "34a · masculino", "HAS controlada · Losartana 50mg"),
-        "BENEF-001": ("JC", "João Carlos Fictício", "58a · masculino", "HAS · arritmia sinusal"),
-        "BENEF-002": ("MA", "Maria Aparecida Fictícia", "67a · feminino", "IC fração reduzida · FA"),
-        "BENEF-003": ("RS", "Roberto Silva Fictício", "42a · masculino", "HAS leve"),
-        "BENEF-CV-001": ("HP", "Helena Pereira Fictícia", "70a · feminino", "IC fração reduzida"),
-    }
-    iniciais, nome, meta, condicoes = perfis_info.get(perfil_id,
-                                                       ("??", "—", "—", "—"))
+    """Card visual do paciente ativo no chat.
+
+    Fix consolidado pós-merge: lê dinamicamente do JSON via get_patient()
+    em vez de dict perfis_info hardcoded (que só tinha GABRIEL + BENEFs
+    antigos e mostrava '??' pra MEU_PERFIL/BENEF-NEW-*).
+    """
+    from shared.patient_registry import get_patient
+
+    perfil = get_patient(perfil_id) if perfil_id else None
+
+    if not perfil or not perfil.get("nome"):
+        # MEU_PERFIL não preenchido ou perfil inexistente
+        iniciais = "??"
+        nome = "Perfil não preenchido"
+        meta = "Crie em /meu-perfil"
+        condicoes = "—"
+    else:
+        nome = perfil["nome"]
+        # Iniciais: primeiras letras das 2 primeiras palavras
+        partes = nome.split()
+        iniciais = (partes[0][0] + (partes[1][0] if len(partes) > 1 else "")).upper()
+
+        idade = perfil.get("idade")
+        sexo = perfil.get("sexo")
+        if idade and sexo:
+            meta = f"{idade}a · {sexo}"
+        elif idade:
+            meta = f"{idade}a"
+        else:
+            meta = "—"
+
+        condicoes_lista = perfil.get("condicoes_ativas", [])
+        if condicoes_lista:
+            nomes_cond = [c.get("nome", str(c)) if isinstance(c, dict) else str(c)
+                          for c in condicoes_lista]
+            # primeiras 2 pra caber visualmente
+            condicoes = " · ".join(nomes_cond[:2])
+        else:
+            condicoes = "Sem condições registradas"
 
     return html.Div([
         html.Div(iniciais, className="hud-patient__avatar"),
@@ -391,6 +420,60 @@ def _hitl_placeholders():
 )
 def atualizar_card_paciente(beneficiario_id):
     return patient_card(beneficiario_id or "GABRIEL")
+
+
+# Fix consolidado pós-merge: sincronização bidirecional perfil-ativo Store
+# ↔ dropdown chat 'beneficiario-select'. Antes o dropdown era estado órfão
+# (hardcoded value="GABRIEL", ignorava o Store). Visível ao trocar perfil
+# pelo topbar e abrir /chat — dropdown ficava em GABRIEL.
+@callback(
+    Output("beneficiario-select", "value"),
+    Input("perfil-ativo", "data"),
+    State("beneficiario-select", "value"),
+    prevent_initial_call=False,
+)
+def _sync_chat_dropdown_from_store(perfil_data, current):
+    """Store → dropdown chat. no_update quando já bate evita ping-pong."""
+    if not perfil_data:
+        return no_update
+    target = perfil_data.get("id")
+    if target and target != current:
+        return target
+    return no_update
+
+
+@callback(
+    Output("perfil-ativo", "data", allow_duplicate=True),
+    Input("beneficiario-select", "value"),
+    State("perfil-ativo", "data"),
+    prevent_initial_call=True,
+)
+def _sync_store_from_chat_dropdown(chat_value, current):
+    """Dropdown chat → Store. allow_duplicate porque app.py já tem Output."""
+    if not chat_value:
+        return no_update
+    if current and current.get("id") == chat_value:
+        return no_update
+    return {"id": chat_value}
+
+
+# Refresh dinâmico das options ao re-entrar em /chat. BENEFICIARIOS é
+# carregado em module-import; sem este callback, mudar nome do MEU_PERFIL
+# via formulário só refletiria após restart do app.
+@callback(
+    Output("beneficiario-select", "options"),
+    Input("hud-url", "pathname"),
+    prevent_initial_call=False,
+)
+def _refresh_chat_dropdown_options(pathname):
+    """Re-lê list_patients() do JSON ao entrar em /chat."""
+    if pathname != "/chat":
+        return no_update
+    return [
+        {"label": _format_label(p), "value": p["id"]}
+        for p in list_patients()
+        if _eh_perfil_visivel(p)
+    ]
 
 
 @callback(
