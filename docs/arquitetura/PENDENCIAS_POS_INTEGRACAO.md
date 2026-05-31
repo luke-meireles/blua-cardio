@@ -77,9 +77,12 @@ def load_telemetria(perfil_ativo=None):
 
 ### J.6 — Feedback visual claro de qual perfil está ativo
 
-**Problema:** mesmo se dropdown funcionar (J.5), trocar perfil é silencioso. Filipe reportou no I3: "como não dá pra ver o nome, não tem certeza se o perfil é mudado completamente".
+**STATUS: resolvido implicitamente por J.5** (sem código adicional).
 
-**Trabalho:** opções a discutir na execução:
+A motivação original deste item ("como não dá pra ver o nome, não tem certeza se o perfil é mudado completamente") tinha como causa raiz o bug do dropdown topbar invisível — corrigido em J.5. Agora que o nome do perfil ativo aparece claramente no dropdown PERFIL (topbar), o feedback visual de seleção já é suficiente para a demo. Decisão tomada durante execução do bloco UX (após J.7).
+
+Caso queiramos reforço visual no futuro (header "Perfil ativo: X" por página, toast ao trocar, badge no dropdown), as opções permanecem documentadas abaixo como referência:
+
 - Header de cada página mostrando "Perfil ativo: X" (gabriel.py upstream já tem parcialmente — replicar em meu_perfil.py e pacientes.py).
 - Toast/notificação ao trocar dropdown.
 - Indicador visual no próprio dropdown (badge, cor, etc).
