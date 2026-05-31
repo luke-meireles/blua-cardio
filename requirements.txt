@@ -38,3 +38,6 @@ matplotlib>=3.8.0
 
 # --- Sprint 2 — Testes ---
 pytest>=8.0.0
+
+# Feature 1 (Out.4) — Azure Blob Storage real
+azure-storage-blob>=12.29.0
