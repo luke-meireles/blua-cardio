@@ -17,7 +17,10 @@ import dash
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash import dcc, html, dash_table, callback, Input, Output, State, no_update
+from dash import (
+    dcc, html, dash_table, callback, clientside_callback,
+    Input, Output, State, no_update,
+)
 
 from shared.patient_registry import get_patient, update_patient
 from utils.analysis import (
@@ -311,10 +314,10 @@ def _layout_prontuario(perfil: dict):
     paciente = {
         **PACIENTE_INFO,
         "nome": perfil["nome"],
-        "idade": perfil.get("idade", paciente["idade"]),
+        "idade": perfil.get("idade", PACIENTE_INFO["idade"]),
         "sexo": (perfil["sexo"].capitalize() if perfil.get("sexo")
-                 else paciente["sexo"]),
-        "nascimento": perfil.get("nascimento", paciente["nascimento"]),
+                 else PACIENTE_INFO["sexo"]),
+        "nascimento": perfil.get("nascimento", PACIENTE_INFO["nascimento"]),
     }
 
     if not MEU_PERFIL_CSV.exists():
@@ -716,10 +719,19 @@ def _layout_prontuario(perfil: dict):
 
 # ── Callbacks ────────────────────────────────────────────────────────────────
 # J.1.b — formulário de criação + edição do MEU_PERFIL.
+#
+# Workaround pro re-render: dcc.Location não dispara re-render quando o
+# pathname retornado é igual ao atual (ex: estamos em /meu-perfil e retornamos
+# /meu-perfil). Solução: callback servidor escreve timestamp no Store
+# 'meu-perfil-refresh', clientside callback detecta mudança e força
+# window.location.reload(). Funciona pra ambos os botões (criar e editar).
+
+import time as _time
+
 
 @callback(
     Output("form-feedback", "children"),
-    Output("hud-url", "pathname", allow_duplicate=True),
+    Output("meu-perfil-refresh", "data", allow_duplicate=True),
     Input("btn-criar-perfil", "n_clicks"),
     State("form-nome", "value"),
     State("form-nascimento", "value"),
@@ -729,7 +741,7 @@ def _layout_prontuario(perfil: dict):
 )
 def _criar_perfil(n_clicks, nome, nascimento, idade, sexo):
     """Submete o formulário: valida + persiste no JSON via update_patient.
-    Reload da mesma URL pra renderizar o prontuário cheio."""
+    Trigger reload via Store + clientside callback."""
     if not n_clicks:
         return no_update, no_update
 
@@ -763,17 +775,17 @@ def _criar_perfil(n_clicks, nome, nascimento, idade, sexo):
     except (ValueError, OSError) as exc:
         return _warn(f"Erro ao salvar: {exc}"), no_update
 
-    # Reload mesma URL → layout() detecta nome preenchido → prontuário
-    return no_update, "/meu-perfil"
+    # Dispara clientside reload via mudança no Store
+    return no_update, {"ts": _time.time()}
 
 
 @callback(
-    Output("hud-url", "pathname", allow_duplicate=True),
+    Output("meu-perfil-refresh", "data", allow_duplicate=True),
     Input("btn-editar-perfil", "n_clicks"),
     prevent_initial_call=True,
 )
 def _editar_perfil(n_clicks):
-    """Botão 'EDITAR PERFIL': zera nome no JSON → layout() volta pro form."""
+    """Botão 'EDITAR PERFIL': zera nome no JSON, trigger reload."""
     if not n_clicks:
         return no_update
     try:
@@ -781,4 +793,21 @@ def _editar_perfil(n_clicks):
                        sexo=None, nascimento=None)
     except (ValueError, OSError):
         return no_update
-    return "/meu-perfil"
+    return {"ts": _time.time()}
+
+
+# Clientside callback: detecta mudança no Store e força full reload.
+# Necessário porque o dcc.Location não re-renderiza quando pathname não muda.
+clientside_callback(
+    """
+    function(data) {
+        if (data && data.ts) {
+            window.location.reload();
+        }
+        return '';
+    }
+    """,
+    Output("meu-perfil-reload-dummy", "children"),
+    Input("meu-perfil-refresh", "data"),
+    prevent_initial_call=True,
+)

@@ -121,6 +121,13 @@ app.layout = html.Div(className="app-shell", children=[
     # persistido com valor de sessão anterior. Telemetria (/monitor, /analise)
     # NÃO consome este Store — upstream usa dataset Azure Blob único.
     dcc.Store(id="perfil-ativo", data={"id": "GABRIEL"}, storage_type="session"),
+    # J.1.b — trigger pra forçar reload de /meu-perfil após criar/editar perfil.
+    # O dcc.Location não re-renderiza quando pathname retornado é igual ao atual
+    # (ex: estamos em /meu-perfil e callback retorna /meu-perfil). Workaround:
+    # callback escreve timestamp aqui, clientside callback em meu_perfil.py
+    # detecta mudança e chama window.location.reload().
+    dcc.Store(id="meu-perfil-refresh", data=None),
+    html.Div(id="meu-perfil-reload-dummy", style={"display": "none"}),
     # CHAT INTEGRATION: audio element global pra alerts do chatbot
     html.Audio(id="audio-alert", src="/assets/alert.wav",
                className="blua-audio-alert", autoPlay=False),
