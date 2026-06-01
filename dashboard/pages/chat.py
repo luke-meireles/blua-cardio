@@ -384,10 +384,8 @@ layout = html.Div([
 
         ], className="grid grid-12col", style={"marginTop": "16px"}),
 
-        # Footer
+        # Footer — apenas disclaimer clínico (info de backend/modelo removida).
         html.Div([
-            html.Span(f"BluaDiagnostics Sprint 2 · Backend: {BACKEND_ATUAL.upper()} · "
-                      f"Modelo: {MODELO_ATUAL}"),
             html.Span("⚕️ Este sistema não substitui avaliação médica · Em emergência: SAMU 192"),
         ], className="hud-footer", style={"marginTop": "24px"}),
 
