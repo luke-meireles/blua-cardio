@@ -4,9 +4,12 @@ Run with:  python app.py
 
 from __future__ import annotations
 
-import uuid  # CHAT INTEGRATION: thread_id para dcc.Store global
 from datetime import datetime, timezone
 from pathlib import Path  # FIX 8.5: pages_folder absoluto
+
+# uuid agora é importado localmente em _inicializar_session_data — antes era
+# usado no data literal do dcc.Store(session-data), o que causava o Bug 2
+# (mesmo uuid pra todos os clientes). Ver comentário detalhado no callback.
 
 import dash
 from dash import Dash, Input, Output, State, dcc, html
@@ -106,15 +109,24 @@ def _footer():
 app.layout = html.Div(className="app-shell", children=[
     dcc.Location(id="hud-url"),
     dcc.Interval(id="hud-clock-tick", interval=1000, n_intervals=0),
-    # CHAT INTEGRATION: estado de sessão do chatbot preservado entre páginas.
-    # storage_type default ("memory") — vai zerar ao recarregar a aba.
-    # Para sobreviver a refresh, mudar para storage_type="session".
-    dcc.Store(id="session-data", data={
-        "thread_id": str(uuid.uuid4()),
-        "mensagens": [],
-        "flags_safety_anteriores": [],
-        "ultimo_estado": None,
-    }),
+    # CHAT INTEGRATION + bug fix demo pública (3 bugs encadeados):
+    #
+    # Bug 1: storage_type default era "memory" — zerava UI ao F5/fechar aba.
+    #        Fix: storage_type="local" sobrevive entre sessões do mesmo browser.
+    #
+    # Bug 2 (CRÍTICO): str(uuid.uuid4()) no data literal era avaliado UMA vez
+    #        no import do módulo. TODOS os clientes conectados ao servidor
+    #        recebiam o MESMO thread_id, causando cross-talk no MemorySaver
+    #        do LangGraph (conversa de um usuário vazava pra outro).
+    #        Fix: data=None inicial + callback _inicializar_session_data que
+    #        gera uuid único por cliente na primeira navegação. Como
+    #        storage_type="local" é per-browser, cada cliente tem seu thread.
+    #
+    # Bug 3: MemorySaver in-process compartilhado por todos (server-side).
+    #        Não bloqueia demo (Bug 2 fixado isola por thread_id). Documentado
+    #        em PENDENCIAS_POS_INTEGRACAO.md (Out.5) — produção real precisa
+    #        de SqliteSaver ou Redis-backed checkpoint.
+    dcc.Store(id="session-data", storage_type="local", data=None),
     # C13: perfil ativo (atalho de navegação contextual entre Gabriel e Meu Perfil)
     # storage_type="session" (não "local") — zera ao fechar aba pra evitar
     # dessincronização entre dropdown (value="GABRIEL" hardcoded) e Store
@@ -213,6 +225,41 @@ def _sync_dropdown_to_url(pathname, current_value):
         return "MEU_PERFIL"
     if pathname == "/gabriel" and current_value != "GABRIEL":
         return "GABRIEL"
+    return dash.no_update
+
+
+# Bug fix demo pública: gera thread_id único por cliente.
+# Como session-data tem storage_type="local" (per-browser), cada cliente
+# chama esse callback na primeira navegação e recebe um thread_id próprio.
+# Evita cross-talk no MemorySaver server-side do LangGraph (todos os clientes
+# compartilhavam o mesmo uuid fixo gerado no import time do módulo).
+#
+# allow_duplicate=True porque processar_mensagem em chat.py também escreve
+# em session-data. prevent_initial_call="initial_duplicate" permite disparar
+# na carga inicial sem conflitar com o validator de duplicates do Dash.
+@app.callback(
+    Output("session-data", "data", allow_duplicate=True),
+    Input("hud-url", "pathname"),
+    State("session-data", "data"),
+    prevent_initial_call="initial_duplicate",
+)
+def _inicializar_session_data(pathname, current):
+    """Inicializa session-data com thread_id único por cliente.
+
+    Idempotente: se já existe thread_id no Store, retorna no_update.
+    Dispara em qualquer mudança de pathname E na carga inicial
+    (initial_duplicate). Garante que cada browser tem thread_id próprio.
+    """
+    import uuid as _uuid
+    if (current is None
+            or not isinstance(current, dict)
+            or not current.get("thread_id")):
+        return {
+            "thread_id": str(_uuid.uuid4()),
+            "mensagens": [],
+            "flags_safety_anteriores": [],
+            "ultimo_estado": None,
+        }
     return dash.no_update
 
 

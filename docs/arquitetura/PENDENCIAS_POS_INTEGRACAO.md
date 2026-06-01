@@ -130,6 +130,30 @@ Após J.7, perfis criados via `criar_perfil_paciente` aparecerão no dropdown au
 
 ---
 
+## Limitações conhecidas — produção real
+
+### Out.5 — LangGraph MemorySaver in-process
+
+`src/graph.py:477` usa `MemorySaver()` (LangGraph default). Funcional pra demo
+local e single-server, mas:
+
+- **Reinicia ao reiniciar processo do servidor.** Histórico perdido.
+- **Não escala horizontalmente.** Múltiplas instâncias do app não compartilham
+  checkpoints — usuário pode pular de instância e perder contexto.
+
+Pra produção real, substituir por:
+- `SqliteSaver` (LangGraph built-in) — persiste em arquivo SQLite local.
+- Redis-backed checkpoint (custom adapter) — escala horizontalmente.
+
+**Não bloqueia demo** porque o fix de `thread_id` único por cliente
+(via `dcc.Store(storage_type="local")` + callback `_inicializar_session_data`
+no `dashboard/app.py`) garante isolamento mesmo com MemorySaver compartilhado
+server-side — cada cliente tem chave própria no dict in-memory do checkpoint.
+
+Trabalho estimado: 1-2h (depende de qual backend escolher).
+
+---
+
 ## Fora de escopo (decisão futura de Filipe)
 
 ### Out.1 — Atualização do `README.md` raiz
