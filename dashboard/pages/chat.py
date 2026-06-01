@@ -384,10 +384,8 @@ layout = html.Div([
 
         ], className="grid grid-12col", style={"marginTop": "16px"}),
 
-        # Footer — apenas disclaimer clínico (info de backend/modelo removida).
-        html.Div([
-            html.Span("⚕️ Este sistema não substitui avaliação médica · Em emergência: SAMU 192"),
-        ], className="hud-footer", style={"marginTop": "24px"}),
+        # Footer REMOVIDO — o footer global em dashboard/app.py já mostra
+        # o disclaimer em todas as rotas. Manter aqui criava barra duplicada.
 
     ], className="hud-page"),
 

@@ -101,8 +101,8 @@ def _topbar():
 
 def _footer():
     return html.Footer(className="hud-footer", children=[
-        html.Span("CARDIOMONITOR v1.0  //  PPG SLIDING WINDOW N=5  //  THRESHOLDS 100/120 ms"),
-        html.Span("HARDWARE: ESP32 + MAX30100"),
+        html.Span("⚕️ Este sistema não substitui avaliação médica · "
+                  "Em emergência: SAMU 192"),
     ])
 
 
