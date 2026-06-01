@@ -81,11 +81,12 @@ def agente_suporte_clinico(
 
     mensagens = formatar_mensagens(system, historico, mensagem)
 
-    # Thinking ON + temperatura de raciocínio: orientações exigem reflexão.
+    # enable_thinking=False pra reduzir latência (~3-8s economizados por turno).
+    # Orientações de suporte permanecem com TEMPERATURA_RACIOCINIO pra qualidade.
     resposta = chat(
         messages=mensagens,
         tools=_TOOLS_SUPORTE,
-        enable_thinking=True,
+        enable_thinking=False,
         temperature=TEMPERATURA_RACIOCINIO,
     )
 
@@ -116,10 +117,11 @@ def agente_suporte_clinico(
                 "content": resultado
             })
 
+        # enable_thinking=False também no follow-up pós-tool (mesma justificativa)
         resposta = chat(
             messages=mensagens,
             tools=_TOOLS_SUPORTE,
-            enable_thinking=True,
+            enable_thinking=False,
             temperature=TEMPERATURA_RACIOCINIO,
         )
 

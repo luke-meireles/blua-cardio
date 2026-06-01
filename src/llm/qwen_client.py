@@ -36,7 +36,10 @@ def _modelo_padrao(backend: str) -> str:
     a variável atualizada seria ignorada.
     """
     if backend == "dashscope":
-        return os.getenv("QWEN_DASHSCOPE_MODEL", "qwen-plus")
+        # Default qwen-turbo (~30% mais rápido que qwen-plus pra qualidade
+        # aceitável em demo). Override via QWEN_DASHSCOPE_MODEL=qwen-plus
+        # se quiser qualidade superior em troca de latência.
+        return os.getenv("QWEN_DASHSCOPE_MODEL", "qwen-turbo")
     return os.getenv("QWEN_OLLAMA_MODEL", "qwen:9b")
 
 # Base URLs por backend — dashscope cloud OU ollama on-prem

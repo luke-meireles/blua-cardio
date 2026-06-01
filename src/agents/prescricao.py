@@ -81,11 +81,14 @@ def agente_prescricao(
 
     mensagens = formatar_mensagens(system, historico, mensagem)
 
-    # Thinking ON: prescrição exige raciocínio (interação, dose, contraindicação).
+    # enable_thinking=False pra reduzir latência (~3-8s economizados por turno).
+    # Prescrição é validada pelo HITL síncrono (CFM 2.314/22) — safety net mantém
+    # qualidade mesmo sem hybrid thinking. Tools (verificar_interacoes,
+    # prescrever_medicamento) preservam a lógica clínica crítica.
     resposta = chat(
         messages=mensagens,
         tools=_TOOLS_PRESCRICAO,
-        enable_thinking=True,
+        enable_thinking=False,
         temperature=TEMPERATURA_PADRAO,
     )
 
@@ -126,10 +129,11 @@ def agente_prescricao(
                 "content": resultado_str
             })
 
+        # enable_thinking=False também no follow-up pós-tool (mesma justificativa)
         resposta = chat(
             messages=mensagens,
             tools=_TOOLS_PRESCRICAO,
-            enable_thinking=True,
+            enable_thinking=False,
             temperature=TEMPERATURA_PADRAO,
         )
 

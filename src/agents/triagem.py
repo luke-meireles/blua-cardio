@@ -82,11 +82,12 @@ def agente_triagem(
 
     mensagens = formatar_mensagens(system, historico, mensagem)
 
-    # Thinking ON + temperatura de raciocínio: triagem é o cenário mais crítico.
+    # enable_thinking=False pra reduzir latência (~3-8s economizados por turno)
+    # — qualidade triagem aceitável sem hybrid thinking pra demo.
     resposta = chat(
         messages=mensagens,
         tools=_TOOLS_TRIAGEM,
-        enable_thinking=True,
+        enable_thinking=False,
         temperature=TEMPERATURA_RACIOCINIO,
     )
 
@@ -117,10 +118,11 @@ def agente_triagem(
                 "content": resultado
             })
 
+        # enable_thinking=False também no follow-up pós-tool (mesma justificativa)
         resposta = chat(
             messages=mensagens,
             tools=_TOOLS_TRIAGEM,
-            enable_thinking=True,
+            enable_thinking=False,
             temperature=TEMPERATURA_RACIOCINIO,
         )
 
