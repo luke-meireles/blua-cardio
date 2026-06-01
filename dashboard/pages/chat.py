@@ -274,15 +274,15 @@ layout = html.Div([
     html.Audio(id="audio-alert", src="/assets/alert.wav",
                className="blua-audio-alert", autoPlay=False),
 
-    # J.4 — trigger de rehidratação. Dispara 1x após o layout montar
-    # (max_intervals=1) e força o callback _rehidratar_chat_area a popular
-    # chat-area com mensagens do session-data. Usar Interval em vez de
-    # Input(hud-url.pathname) porque o page_container do Dash multi-pages
-    # re-renderiza o layout DEPOIS dos callbacks que escutam pathname,
-    # sobrescrevendo o output. Interval só dispara quando o componente
-    # JÁ está montado, garantindo que o output sobrevive.
-    dcc.Interval(id="chat-rehidratar-tick", interval=300,
-                 max_intervals=1, n_intervals=0),
+    # J.4 — trigger de rehidratação agora usa Input("_pages_content", "children")
+    # diretamente no callback _rehidratar_chat_area (ver abaixo). Não é mais
+    # necessário componente no layout do /chat — o page_container do Dash
+    # multi-pages é trigger nativo. Histórico:
+    #   v1: dcc.Interval(max_intervals=1) em chat.py — só funcionava na 1ª visita
+    #   v2: Store global + async clientside_callback com setTimeout(400ms) —
+    #       Promise não esperava resolver no Dash 4.1, downstream não disparava
+    #   v3 (atual): Input("_pages_content", "children") — trigger nativo do
+    #       Dash multi-pages, sem delay artificial, sem Promise async.
 
     # Session storage — Passo 8.5: movido para o layout global do
     # app/unified_app.py com storage_type="session" (preserva conversa
@@ -504,6 +504,40 @@ def processar_mensagem(n_enviar, n_submit, n_nova, n_aprovar, n_rejeitar,
                        mensagem, beneficiario, sessao):
     trig = ctx.triggered_id
 
+    import sys as _sys
+    print(f"[PROCESSAR_ENTRY] trig={trig!r} n_enviar={n_enviar!r} n_submit={n_submit!r} "
+          f"n_nova={n_nova!r} n_aprovar={n_aprovar!r} n_rejeitar={n_rejeitar!r}",
+          file=_sys.stderr, flush=True)
+
+    # Lazy init de session-data: gera thread_id na primeira ação do user.
+    # Antes era feito via clientside callback em pathname change, mas Dash 4.1
+    # tinha race condition que wipava o Store em navegações subsequentes.
+    # Aqui, sessao só é tocada quando o user dispara uma ação (botão/Enter),
+    # garantindo zero interferência da navegação entre rotas.
+    if not sessao or not isinstance(sessao, dict) or not sessao.get("thread_id"):
+        sessao = {
+            "thread_id": str(uuid.uuid4()),
+            "mensagens": [],
+            "flags_safety_anteriores": [],
+            "ultimo_estado": None,
+        }
+
+    # GUARDA contra trigger falso por re-mount do botão em navegação multi-pages:
+    # Quando user navega /chat → /monitor → /chat, os botões re-montam com
+    # n_clicks=None, e Dash dispara processar_mensagem com trigger spurious.
+    # Antigamente isso wipava as mensagens via branch btn-nova-sessao.
+    # Fix: rejeitar trigger de botão com n_clicks falsy.
+    button_clicks = {
+        "btn-enviar": n_enviar,
+        "btn-nova-sessao": n_nova,
+        "btn-hitl-aprovar": n_aprovar,
+        "btn-hitl-rejeitar": n_rejeitar,
+    }
+    if trig in button_clicks and not button_clicks[trig]:
+        print(f"[PROCESSAR_GUARD] rejeitado trigger spurious: trig={trig} "
+              f"n_clicks={button_clicks[trig]!r}", file=_sys.stderr, flush=True)
+        return (no_update,) * 11
+
     # Reset de sessão — limpa só a UI, MANTÉM thread_id (contexto LangGraph
     # preservado). Útil pra demo: apresentador limpa a tela visualmente sem
     # perder o fio da conversa que o chatbot já tem internamente.
@@ -643,6 +677,9 @@ def processar_mensagem(n_enviar, n_submit, n_nova, n_aprovar, n_rejeitar,
     else:
         hitl_view = _hitl_placeholders()
 
+    import sys as _sys
+    print(f"[PROCESSAR] gravando em session-data: {len(sessao.get('mensagens', []))} mensagens",
+          file=_sys.stderr, flush=True)
     return (sessao, chat_children, confidence_view, trajectory_view,
             intent_view, rag_view, tools_view, safety_view, hitl_view,
             "", eh_emergencia)
@@ -735,26 +772,34 @@ clientside_callback(
 
 @callback(
     Output("chat-area", "children", allow_duplicate=True),
-    Input("chat-rehidratar-tick", "n_intervals"),
+    Input("_pages_content", "children"),
     State("session-data", "data"),
+    State("hud-url", "pathname"),
     prevent_initial_call=True,
 )
-def _rehidratar_chat_area(_n_intervals, sessao):
-    """Repopula chat-area.children a partir de session-data.mensagens
-    quando o layout do /chat termina de montar. Sem isso, mensagens
-    enviadas antes de sair da página somem visualmente ao voltar.
+def _rehidratar_chat_area(_content, sessao, pathname):
+    """Rehidrata área de mensagens ao re-entrar em /chat."""
+    import sys as _sys
+    n_msg = len(sessao.get("mensagens", [])) if isinstance(sessao, dict) else "N/A"
+    print(f"[REHIDRATE] disparado! pathname={pathname!r} sessao_type={type(sessao).__name__} mensagens={n_msg}",
+          file=_sys.stderr, flush=True)
 
-    Trigger via dcc.Interval em vez de Input(hud-url.pathname) porque
-    o page_container do Dash multi-pages re-renderiza o layout DEPOIS
-    dos callbacks que escutam pathname, sobrescrevendo o output."""
-    if not sessao or not sessao.get("mensagens"):
-        # Primeira visita ou sessão zerada — mantém o "Olá" inicial
+    if pathname != "/chat":
+        print(f"[REHIDRATE] skip — pathname={pathname!r} != /chat", file=_sys.stderr, flush=True)
         return no_update
-    # Re-renderiza histórico
+    if not sessao or not isinstance(sessao, dict):
+        print(f"[REHIDRATE] skip — sessao vazia/inválida ({type(sessao).__name__})", file=_sys.stderr, flush=True)
+        return no_update
+    mensagens = sessao.get("mensagens", [])
+    if not mensagens:
+        print(f"[REHIDRATE] skip — zero mensagens no Store", file=_sys.stderr, flush=True)
+        return no_update
+
+    print(f"[REHIDRATE] RENDERIZANDO {len(mensagens)} mensagens em chat-area", file=_sys.stderr, flush=True)
     return [
         chat_bubble(m["role"], m["content"],
                     emergencia=m.get("emergencia", False))
-        for m in sessao["mensagens"]
+        for m in mensagens
     ]
 
 

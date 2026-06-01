@@ -140,6 +140,8 @@ app.layout = html.Div(className="app-shell", children=[
     # detecta mudança e chama window.location.reload().
     dcc.Store(id="meu-perfil-refresh", data=None),
     html.Div(id="meu-perfil-reload-dummy", style={"display": "none"}),
+    # FORENSE: dummy div pra capturar TODA mudança em session-data
+    html.Div(id="_debug_session_observer", style={"display": "none"}),
     # CHAT INTEGRATION: audio element global pra alerts do chatbot
     html.Audio(id="audio-alert", src="/assets/alert.wav",
                className="blua-audio-alert", autoPlay=False),
@@ -228,39 +230,44 @@ def _sync_dropdown_to_url(pathname, current_value):
     return dash.no_update
 
 
-# Bug fix demo pública: gera thread_id único por cliente.
-# Como session-data tem storage_type="local" (per-browser), cada cliente
-# chama esse callback na primeira navegação e recebe um thread_id próprio.
-# Evita cross-talk no MemorySaver server-side do LangGraph (todos os clientes
-# compartilhavam o mesmo uuid fixo gerado no import time do módulo).
-#
-# allow_duplicate=True porque processar_mensagem em chat.py também escreve
-# em session-data. prevent_initial_call="initial_duplicate" permite disparar
-# na carga inicial sem conflitar com o validator de duplicates do Dash.
+# FORENSE: callback observador de TODA mudança em session-data.
+# Loga quem está disparando alteração — incluindo navegação se for o caso.
 @app.callback(
-    Output("session-data", "data", allow_duplicate=True),
+    Output("_debug_session_observer", "children"),
+    Input("session-data", "data"),
     Input("hud-url", "pathname"),
-    State("session-data", "data"),
-    prevent_initial_call="initial_duplicate",
+    prevent_initial_call=False,
 )
-def _inicializar_session_data(pathname, current):
-    """Inicializa session-data com thread_id único por cliente.
+def _observe_session_data(sessao, pathname):
+    import sys as _sys
+    n_msg = (len(sessao.get("mensagens", []))
+             if isinstance(sessao, dict) else "N/A")
+    tid = (sessao.get("thread_id", "NONE")[:8]
+           if isinstance(sessao, dict) and sessao.get("thread_id") else "NONE")
+    trig = dash.callback_context.triggered_id if hasattr(dash, 'callback_context') else '?'
+    print(f"[OBSERVE] triggered_by={trig} pathname={pathname!r} "
+          f"sessao_type={type(sessao).__name__} thread={tid} mensagens={n_msg}",
+          file=_sys.stderr, flush=True)
+    return ""
 
-    Idempotente: se já existe thread_id no Store, retorna no_update.
-    Dispara em qualquer mudança de pathname E na carga inicial
-    (initial_duplicate). Garante que cada browser tem thread_id próprio.
-    """
-    import uuid as _uuid
-    if (current is None
-            or not isinstance(current, dict)
-            or not current.get("thread_id")):
-        return {
-            "thread_id": str(_uuid.uuid4()),
-            "mensagens": [],
-            "flags_safety_anteriores": [],
-            "ultimo_estado": None,
-        }
-    return dash.no_update
+
+# REMOVIDO: clientside _inicializar_session_data
+#
+# Histórico do bug que motivou a remoção:
+# Esse callback escutava Input(hud-url.pathname) pra gerar thread_id único
+# por cliente. Mas Dash 4.1 tem race condition onde `current` (State da Store)
+# chega como null/inválido em algumas mudanças de pathname mesmo quando o
+# Store tem dados — fazendo o callback SOBRESCREVER session-data com Store
+# vazio, wipando as mensagens da conversa.
+#
+# Evidência forense (sessão de debug):
+#   [PROCESSAR] gravando em session-data: 2 mensagens
+#   [REHIDRATE] mensagens=2 RENDERIZANDO    ← OK
+#   [REHIDRATE] mensagens=0                  ← Store foi wipado entre nav!
+#
+# Fix: gerar thread_id LAZY em processar_mensagem (chat.py) quando sessao
+# chega None ou sem thread_id. Sem callback de init, nada mais toca em
+# session-data sem ação explícita do user. Solve o root cause sem workaround.
 
 
 if __name__ == "__main__":
